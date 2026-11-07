@@ -1,0 +1,95 @@
+name: Build TWRP Recovery for Moto G Stylus 2025 (mona)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+    inputs:
+      MANIFEST_BRANCH:
+        description: 'TWRP Manifest Branch'
+        required: true
+        default: 'twrp-12.1'
+        type: choice
+        options:
+        - twrp-12.1
+        - twrp-11
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    steps:
+    - name: Free Disk Space
+      uses: easimon/maximize-build-space@master
+      with:
+        root-reserve-mb: 2048
+        swap-size-mb: 10240
+        remove-dotnet: 'true'
+        remove-android: 'true'
+        remove-haskell: 'true'
+
+    - name: Checkout Device Tree
+      uses: actions/checkout@v4
+      with:
+        path: device/motorola/mona
+
+    - name: Set up Environment & Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev \
+          gcc-multilib g++-multilib libc6-dev-i386 libncurses5-dev libncurses6 x11proto-core-dev \
+          libx11-dev lib32z1-dev libgl1-mesa-dev libxml2 libxml2-utils xsltproc unzip fontconfig \
+          python3 python-is-python3 rsync libssl-dev bc cpio
+        mkdir -p ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        sudo ln -sf ~/bin/repo /usr/bin/repo
+        git config --global user.name "Builder"
+        git config --global user.email "builder@localhost"
+
+    - name: Initialize TWRP Minimal Manifest
+      run: |
+        BRANCH="${{ github.event.inputs.MANIFEST_BRANCH }}"
+        if [ -z "$BRANCH" ]; then
+          BRANCH="twrp-12.1"
+        fi
+        mkdir -p ~/twrp
+        cd ~/twrp
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b $BRANCH
+        repo sync -c --no-clone-bundle --no-tags -j$(nproc --all)
+
+    - name: Copy Device Tree
+      run: |
+        rm -rf ~/twrp/device/motorola/mona
+        mkdir -p ~/twrp/device/motorola/mona
+        cp -r device/motorola/mona/* ~/twrp/device/motorola/mona/
+
+    - name: Build Recovery
+      run: |
+        cd ~/twrp
+        source build/envsetup.sh
+        export ALLOW_MISSING_DEPENDENCIES=true
+        lunch twrp_mona-eng || lunch twrp_mona-userdebug
+        make -j$(nproc --all) recoveryimage
+
+    - name: Upload TWRP Recovery Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TWRP-mona-recovery
+        path: |
+          ~/twrp/out/target/product/mona/recovery.img
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      with:
+        files: |
+          ~/twrp/out/target/product/mona/recovery.img
+        tag_name: build-${{ github.run_number }}
+        name: TWRP Recovery for Moto G Stylus 2025 (mona) #${{ github.run_number }}
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
