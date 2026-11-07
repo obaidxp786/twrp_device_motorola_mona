@@ -9,8 +9,8 @@ DEVICE_PATH := device/motorola/mona
 TARGET_ARCH := arm64
 TARGET_ARCH_VARIANT := armv8-a
 TARGET_CPU_ABI := arm64-v8a
-TARGET_CPU_VARIANT := kryo300
-TARGET_CPU_VARIANT_RUNTIME := kryo300
+TARGET_CPU_VARIANT := generic
+TARGET_CPU_VARIANT_RUNTIME := generic
 
 # Platform
 TARGET_BOARD_PLATFORM := parrot
@@ -24,7 +24,6 @@ TARGET_OTA_ASSERT_DEVICE := mona,mona_g
 BOARD_BOOT_HEADER_VERSION := 4
 BOARD_KERNEL_PAGESIZE := 4096
 BOARD_KERNEL_CMDLINE := video=vfb:640x400,bpp=32,memsize=3072000 nosoftlockup console=ttynull qcom_geni_serial.con_enabled=0 printk.devkmsg=on firmware_class.path=/vendor/firmware_mnt/image bootconfig
-BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
 
 # Prebuilt Kernel & DTB
 TARGET_NO_KERNEL := false
@@ -32,7 +31,6 @@ TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
 BOARD_KERNEL_IMAGE_NAME := kernel
 TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb
 BOARD_PREBUILT_DTBIMAGE := $(DEVICE_PATH)/prebuilt/dtb
-BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
 
 # Partitions & Sizes
 BOARD_FLASH_BLOCK_SIZE := 262144
@@ -44,23 +42,13 @@ BOARD_DTBOIMG_PARTITION_SIZE := 24117248
 BOARD_HAS_LARGE_FILESYSTEM := true
 TARGET_COPY_OUT_RECOVERY := recovery
 
-# Disable building other partition images in minimal manifest
-PRODUCT_BUILD_SYSTEM_IMAGE := false
-PRODUCT_BUILD_SYSTEM_EXT_IMAGE := false
-PRODUCT_BUILD_PRODUCT_IMAGE := false
-PRODUCT_BUILD_VENDOR_IMAGE := false
-PRODUCT_BUILD_ODM_IMAGE := false
-PRODUCT_BUILD_VENDOR_DLKM_IMAGE := false
-PRODUCT_BUILD_SYSTEM_DLKM_IMAGE := false
-PRODUCT_BUILD_SUPER_PARTITION := false
-
-# Dynamic Partitions Definition
+# Dynamic Partitions
 BOARD_SUPER_PARTITION_SIZE := 9126805504
 BOARD_SUPER_PARTITION_GROUPS := qti_dynamic_partitions
 BOARD_QTI_DYNAMIC_PARTITIONS_PARTITION_LIST := system system_ext product vendor vendor_dlkm system_dlkm
 BOARD_QTI_DYNAMIC_PARTITIONS_SIZE := 9122611200
 
-# A/B & Virtual A/B
+# A/B
 AB_OTA_UPDATER := true
 AB_OTA_PARTITIONS += \
     boot \
@@ -105,7 +93,7 @@ TW_BRIGHTNESS_PATH := "/sys/class/backlight/panel0-backlight/brightness"
 TW_MAX_BRIGHTNESS := 4095
 TW_DEFAULT_BRIGHTNESS := 1024
 
-# Decryption (Disabled for initial bringup to avoid missing vendor HALs)
+# Decryption (Disabled for initial bringup)
 TW_INCLUDE_CRYPTO := false
 TW_INCLUDE_CRYPTO_FBE := false
 PLATFORM_VERSION := 16

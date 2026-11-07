@@ -85,26 +85,22 @@ jobs:
         export ALLOW_MISSING_DEPENDENCIES=true
         export WITHOUT_CHECK_API=true
         export LC_ALL="C"
+        
+        echo "=== Lunching Target ==="
         lunch twrp_mona-eng || lunch omni_mona-eng || lunch twrp_mona-userdebug
         
-        mka recoveryimage -j$(nproc --all) 2>&1 | tee /tmp/build.log || {
-            echo "==================== BUILD FAILED ===================="
-            echo "Last 150 lines of build log:"
-            tail -n 150 /tmp/build.log
-            cp /tmp/build.log $GITHUB_WORKSPACE/build.log
-            exit 1
-        }
+        echo "=== Compiling Recovery Image ==="
+        mka recoveryimage -j$(nproc --all)
 
     - name: Upload TWRP Recovery Artifact
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: TWRP-mona-build-output
+        name: TWRP-mona-recovery
         path: |
           /home/runner/twrp/out/target/product/mona/recovery.img
           /home/runner/twrp/out/target/product/mona/boot.img
           /home/runner/twrp/out/target/product/mona/*.img
-          build.log
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
