@@ -27,6 +27,7 @@ BOARD_KERNEL_CMDLINE := video=vfb:640x400,bpp=32,memsize=3072000 nosoftlockup co
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
 
 # Prebuilt Kernel & DTB
+TARGET_NO_KERNEL := false
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
 BOARD_KERNEL_IMAGE_NAME := kernel
 TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb
@@ -43,7 +44,17 @@ BOARD_DTBOIMG_PARTITION_SIZE := 24117248
 BOARD_HAS_LARGE_FILESYSTEM := true
 TARGET_COPY_OUT_RECOVERY := recovery
 
-# Dynamic Partitions
+# Disable building other partition images in minimal manifest
+PRODUCT_BUILD_SYSTEM_IMAGE := false
+PRODUCT_BUILD_SYSTEM_EXT_IMAGE := false
+PRODUCT_BUILD_PRODUCT_IMAGE := false
+PRODUCT_BUILD_VENDOR_IMAGE := false
+PRODUCT_BUILD_ODM_IMAGE := false
+PRODUCT_BUILD_VENDOR_DLKM_IMAGE := false
+PRODUCT_BUILD_SYSTEM_DLKM_IMAGE := false
+PRODUCT_BUILD_SUPER_PARTITION := false
+
+# Dynamic Partitions Definition
 BOARD_SUPER_PARTITION_SIZE := 9126805504
 BOARD_SUPER_PARTITION_GROUPS := qti_dynamic_partitions
 BOARD_QTI_DYNAMIC_PARTITIONS_PARTITION_LIST := system system_ext product vendor vendor_dlkm system_dlkm
@@ -94,9 +105,9 @@ TW_BRIGHTNESS_PATH := "/sys/class/backlight/panel0-backlight/brightness"
 TW_MAX_BRIGHTNESS := 4095
 TW_DEFAULT_BRIGHTNESS := 1024
 
-# Decryption / CryptFS / FBE
-TW_INCLUDE_CRYPTO := true
-TW_INCLUDE_CRYPTO_FBE := true
+# Decryption (Disabled for initial bringup to avoid missing vendor HALs)
+TW_INCLUDE_CRYPTO := false
+TW_INCLUDE_CRYPTO_FBE := false
 PLATFORM_VERSION := 16
 PLATFORM_VERSION_LAST_STABLE := 15
 PLATFORM_SECURITY_PATCH := 2026-07-01
