@@ -12,6 +12,7 @@ on:
         type: choice
         options:
         - twrp-12.1
+        - twrp-14
         - twrp-11
 
 permissions:
@@ -22,13 +23,29 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
     - name: Free Disk Space
-      uses: easimon/maximize-build-space@master
-      with:
-        root-reserve-mb: 2048
-        swap-size-mb: 10240
-        remove-dotnet: 'true'
-        remove-android: 'true'
-        remove-haskell: 'true'
+      run: |
+        echo "=== Disk space before cleanup ==="
+        df -h
+        sudo rm -rf \
+          /usr/share/dotnet \
+          /usr/local/lib/android \
+          /opt/ghc \
+          /opt/hostedtoolcache \
+          /usr/share/swift \
+          /usr/local/.ghcup \
+          /var/lib/docker
+        sudo docker system prune -a -f || true
+        sudo apt-get clean || true
+        echo "=== Disk space after cleanup ==="
+        df -h
+
+    - name: Setup Swap
+      run: |
+        sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        free -h
 
     - name: Checkout Device Tree
       uses: actions/checkout@v4
@@ -43,11 +60,12 @@ jobs:
           libx11-dev lib32z1-dev libgl1-mesa-dev libxml2 libxml2-utils xsltproc unzip fontconfig \
           python3 python-is-python3 rsync libssl-dev bc cpio
         mkdir -p ~/bin
-        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        curl -sSL https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
         sudo ln -sf ~/bin/repo /usr/bin/repo
         git config --global user.name "Builder"
         git config --global user.email "builder@localhost"
+        git config --global --add safe.directory "*"
 
     - name: Initialize TWRP Minimal Manifest
       run: |
@@ -55,38 +73,44 @@ jobs:
         if [ -z "$BRANCH" ]; then
           BRANCH="twrp-12.1"
         fi
-        mkdir -p ~/twrp
-        cd ~/twrp
+        echo "Using TWRP Manifest Branch: $BRANCH"
+        mkdir -p /home/runner/twrp
+        cd /home/runner/twrp
         repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b $BRANCH
-        repo sync -c --no-clone-bundle --no-tags -j$(nproc --all)
+        repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune -j4 || repo sync -c --no-clone-bundle --no-tags -j2
 
     - name: Copy Device Tree
       run: |
-        rm -rf ~/twrp/device/motorola/mona
-        mkdir -p ~/twrp/device/motorola/mona
-        cp -r device/motorola/mona/* ~/twrp/device/motorola/mona/
+        rm -rf /home/runner/twrp/device/motorola/mona
+        mkdir -p /home/runner/twrp/device/motorola/mona
+        cp -r $GITHUB_WORKSPACE/device/motorola/mona/* /home/runner/twrp/device/motorola/mona/
+        ls -la /home/runner/twrp/device/motorola/mona/
 
     - name: Build Recovery
       run: |
-        cd ~/twrp
+        cd /home/runner/twrp
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
+        export LC_ALL="C"
         lunch twrp_mona-eng || lunch twrp_mona-userdebug
-        make -j$(nproc --all) recoveryimage
+        make -j$(nproc --all) recoveryimage || mka recoveryimage
 
     - name: Upload TWRP Recovery Artifact
       uses: actions/upload-artifact@v4
+      if: always()
       with:
         name: TWRP-mona-recovery
         path: |
-          ~/twrp/out/target/product/mona/recovery.img
+          /home/runner/twrp/out/target/product/mona/recovery.img
+          /home/runner/twrp/out/target/product/mona/boot.img
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
-      if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+      if: success()
+      continue-on-error: true
       with:
         files: |
-          ~/twrp/out/target/product/mona/recovery.img
+          /home/runner/twrp/out/target/product/mona/recovery.img
         tag_name: build-${{ github.run_number }}
         name: TWRP Recovery for Moto G Stylus 2025 (mona) #${{ github.run_number }}
         draft: false
