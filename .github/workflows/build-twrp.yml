@@ -71,6 +71,12 @@ jobs:
         repo init --no-repo-verify --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b $BRANCH
         repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune -j4 || repo sync -c --no-clone-bundle --no-tags -j2
 
+    - name: Patch Build Makefile for Recovery Ramdisk rsync
+      run: |
+        echo "Patching rsync rule in build/make/core/Makefile to prevent root/vendor symlink collision..."
+        sed -i 's/rsync -a --exclude=sdcard/rsync -a --exclude=sdcard --exclude=vendor --exclude=\/root\/vendor --exclude=odm --exclude=\/root\/odm/g' /home/runner/twrp/build/make/core/Makefile
+        grep -n "rsync -a --exclude=sdcard" /home/runner/twrp/build/make/core/Makefile
+
     - name: Copy Device Tree
       run: |
         rm -rf /home/runner/twrp/device/motorola/mona
