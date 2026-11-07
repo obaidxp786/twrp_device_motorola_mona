@@ -5,3 +5,5 @@
 
 add_lunch_combo twrp_mona-eng
 add_lunch_combo twrp_mona-userdebug
+add_lunch_combo omni_mona-eng
+add_lunch_combo omni_mona-userdebug

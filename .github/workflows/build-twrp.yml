@@ -33,19 +33,11 @@ jobs:
           /opt/hostedtoolcache \
           /usr/share/swift \
           /usr/local/.ghcup \
-          /var/lib/docker
+          /var/lib/docker || true
         sudo docker system prune -a -f || true
         sudo apt-get clean || true
         echo "=== Disk space after cleanup ==="
         df -h
-
-    - name: Setup Swap
-      run: |
-        sudo fallocate -l 4G /swapfile || sudo dd if=/dev/zero of=/swapfile bs=1M count=4096
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
-        free -h
 
     - name: Checkout Device Tree
       uses: actions/checkout@v4
@@ -76,7 +68,7 @@ jobs:
         echo "Using TWRP Manifest Branch: $BRANCH"
         mkdir -p /home/runner/twrp
         cd /home/runner/twrp
-        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b $BRANCH
+        repo init --no-repo-verify --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b $BRANCH
         repo sync -c --no-clone-bundle --no-tags --optimized-fetch --prune -j4 || repo sync -c --no-clone-bundle --no-tags -j2
 
     - name: Copy Device Tree
@@ -91,9 +83,10 @@ jobs:
         cd /home/runner/twrp
         source build/envsetup.sh
         export ALLOW_MISSING_DEPENDENCIES=true
+        export WITHOUT_CHECK_API=true
         export LC_ALL="C"
-        lunch twrp_mona-eng || lunch twrp_mona-userdebug
-        make -j$(nproc --all) recoveryimage || mka recoveryimage
+        lunch twrp_mona-eng || lunch omni_mona-eng || lunch twrp_mona-userdebug
+        mka recoveryimage -j$(nproc --all) || make recoveryimage -j$(nproc --all)
 
     - name: Upload TWRP Recovery Artifact
       uses: actions/upload-artifact@v4
@@ -103,6 +96,7 @@ jobs:
         path: |
           /home/runner/twrp/out/target/product/mona/recovery.img
           /home/runner/twrp/out/target/product/mona/boot.img
+          /home/runner/twrp/out/target/product/mona/*.img
 
     - name: Create GitHub Release
       uses: softprops/action-gh-release@v2
